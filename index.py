@@ -122,9 +122,6 @@ def on_message(client, userdata, message):
     if config['frigate']['zones']:
         entered_zones = set(after_data['entered_zones'])
         allowed_zones = set(config['frigate'].get('zones'))
-
-        
-        _LOGGER.debug(f"allowed zones: {allowed_zones}")
         if not entered_zones.intersection(allowed_zones):
             _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong zones: {after_data['entered_zones']}")
             return
