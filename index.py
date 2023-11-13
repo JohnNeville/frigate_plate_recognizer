@@ -119,6 +119,13 @@ def on_message(client, userdata, message):
         _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {after_data['camera']}")
         return
 
+    if config['frigate']['zones']:
+        entered_zones = set(after_data['entered_zones'])
+        allowed_zones = set(config['frigate']['zones'])
+        if not entered_zones.intersection(allowed_zones):
+            _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong zones: {after_data['entered_zones']}")
+            return
+
     # check if it is a valid object like a car, motorcycle, or bus
     if(after_data['label'] not in valid_objects):
         _LOGGER.debug(f"is not a correct label: {after_data['label']}")
