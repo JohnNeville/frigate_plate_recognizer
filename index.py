@@ -121,7 +121,7 @@ def on_message(client, userdata, message):
 
     if config['frigate']['zones']:
         entered_zones = set(after_data['entered_zones'])
-        allowed_zones = set(config['frigate'].get('zones')
+        allowed_zones = set(config['frigate'].get('zones'))
 
         
         _LOGGER.debug(f"allowed zones: {allowed_zones}")
