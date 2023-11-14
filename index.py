@@ -27,20 +27,6 @@ PLATE_RECOGIZER_BASE_URL = 'https://api.platerecognizer.com/v1/plate-reader'
 CODE_PROJECT_AI_BASE_URL = 'http://127.0.0.1:32168'
 valid_objects = ['car', 'motorcycle', 'bus']
 
-
-# you will likely need to create multiple iterations for each vehicle
-# 0/8/B for example are often mixed up
-known_plates = {
-    # Bob's Car
-    "ABC128": "Bob's Car",
-    "ABC12B": "Bob's Car",
-    
-    # Steve's Truck
-    "123TR0": "Steve's Truck",
-    "123TRO": "Steve's Truck",
-}
-
-
 def on_connect(mqtt_client, userdata, flags, rc):
     _LOGGER.info("MQTT Connected")
     mqtt_client.subscribe(config['frigate']['main_topic'] + "/events")
@@ -122,14 +108,7 @@ def code_project_ai_recognize(image):
     if len(plates["predictions"]) > 0 and plates["predictions"][0].get("plate"):
         plate = str(plates["predictions"][0]["plate"]).replace(" ", "")
         score = plates["predictions"][0]["confidence"]
-        _LOGGER.debug(f"Checking plate: {plate} in {known_plates.keys()}")
-        _LOGGER.debug(f"[{datetime.datetime.now()}]: {camera} - detected {plate} as {known_plates.get(plate)} with a score of {score}\n")
-
-        if plate in known_plates.keys():
-            _LOGGER.debug(f"{camera} - Found a known plate: {known_plates[plate]}")
-            return plate, score
-        else:
-            return plate, score
+        return plate, score
     else:
         _LOGGER.debug(f"[{datetime.datetime.now()}]: {camera} - No plates detected in run: {plates}\n")
 
