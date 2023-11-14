@@ -24,7 +24,21 @@ DB_PATH = './config/frigate_plate_recogizer.db'
 LOG_FILE = './config/frigate_plate_recogizer.log'
 
 PLATE_RECOGIZER_BASE_URL = 'https://api.platerecognizer.com/v1/plate-reader'
+CODE_PROJECT_AI_BASE_URL = 'http://127.0.0.1:32168'
 valid_objects = ['car', 'motorcycle', 'bus']
+
+
+# you will likely need to create multiple iterations for each vehicle
+# 0/8/B for example are often mixed up
+known_plates = {
+    # Bob's Car
+    "ABC128": "Bob's Car",
+    "ABC12B": "Bob's Car",
+    
+    # Steve's Truck
+    "123TR0": "Steve's Truck",
+    "123TRO": "Steve's Truck",
+}
 
 
 def on_connect(mqtt_client, userdata, flags, rc):
@@ -92,6 +106,36 @@ def plate_recognizer(image):
     score = response['results'][0].get('score')
 
     return plate_number, score
+
+def code_project_ai_recognize(image):
+    ai_url = config['code_proejct_ai'].get('api_url') or CODE_PROJECT_AI_BASE_URL
+    
+    response = requests.post(
+        ai_url,
+        files=dict(upload=image)
+    )
+
+    _LOGGER.debug(f"response: {response}")
+    plates = response.json()
+    plate = None
+
+    if len(plates["predictions"]) > 0 and plates["predictions"][0].get("plate"):
+        plate = str(plates["predictions"][0]["plate"]).replace(" ", "")
+        score = plates["predictions"][0]["confidence"]
+        _LOGGER.debug(f"Checking plate: {plate} in {known_plates.keys()}")
+        _LOGGER.debug(f"[{datetime.datetime.now()}]: {camera} - detected {plate} as {known_plates.get(plate)} with a score of {score}\n")
+
+        if plate in known_plates.keys():
+            _LOGGER.debug(f"{camera} - Found a known plate: {known_plates[plate]}")
+            return plate, score
+        else:
+            return plate, score
+    else:
+        _LOGGER.debug(f"[{datetime.datetime.now()}]: {camera} - No plates detected in run: {plates}\n")
+
+    if plate is None:
+        print(f"No valid results found: {plates['predictions']}")
+        return None, None
 
 def send_mqtt_message(message):
     _LOGGER.debug(f"Sending MQTT message: {message}")
@@ -169,8 +213,10 @@ def on_message(client, userdata, message):
     score = None
     if config.get('plate_recognizer'):
         plate_number, score = plate_recognizer(response.content)
+    elif config.get('code_proejct_ai'):
+        plate_number, score = code_project_ai_recognize(response.content)
     else:
-        _LOGGER.error("Plate Recognizer is not configured")
+        _LOGGER.error("Plate Recognizer is not configured. You must configure either code_proejct_ai or plate_recongizer")
         return
 
     if plate_number is None:
