@@ -24,7 +24,6 @@ DB_PATH = './config/frigate_plate_recogizer.db'
 LOG_FILE = './config/frigate_plate_recogizer.log'
 
 PLATE_RECOGIZER_BASE_URL = 'https://api.platerecognizer.com/v1/plate-reader'
-CODE_PROJECT_AI_BASE_URL = 'http://127.0.0.1:32168'
 valid_objects = ['car', 'motorcycle', 'bus']
 
 def on_connect(mqtt_client, userdata, flags, rc):
@@ -94,23 +93,24 @@ def plate_recognizer(image):
     return plate_number, score
 
 def code_project_ai_recognize(image):
-    ai_url = config['code_proejct_ai'].get('api_url') or CODE_PROJECT_AI_BASE_URL
+    ai_url = config['code_proejct_ai'].get('api_url')
     
     response = requests.post(
         ai_url,
-        files=dict(upload=image)
+        files=dict(image1=image),
+        data=dict(confidence=0.4)
     )
 
     _LOGGER.debug(f"response: {response}")
     plates = response.json()
     plate = None
 
-    if len(plates["predictions"]) > 0 and plates["predictions"][0].get("plate"):
+    if "predictions" in plates and len(plates["predictions"]) > 0 and plates["predictions"][0].get("plate"):
         plate = str(plates["predictions"][0]["plate"]).replace(" ", "")
         score = plates["predictions"][0]["confidence"]
         return plate, score
     else:
-        _LOGGER.debug(f"[{datetime.datetime.now()}]: {camera} - No plates detected in run: {plates}\n")
+        _LOGGER.debug(f"[{datetime.now()}]: No plates detected in run: {plates}\n")
 
     if plate is None:
         print(f"No valid results found: {plates['predictions']}")
@@ -142,12 +142,13 @@ def on_message(client, userdata, message):
         _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {after_data['camera']}")
         return
 
-    if config['frigate']['zones']:
-        entered_zones = set(after_data['entered_zones'])
-        allowed_zones = set(config['frigate'].get('zones'))
-        if not entered_zones.intersection(allowed_zones):
-            _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong zones: {after_data['entered_zones']}")
-            return
+    if 'zones' in config['frigate']:
+        if config['frigate']['zones']:
+            entered_zones = set(after_data['entered_zones'])
+            allowed_zones = set(config['frigate'].get('zones'))
+            if not entered_zones.intersection(allowed_zones):
+                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong zones: {after_data['entered_zones']}")
+                return
 
     # check if it is a valid object like a car, motorcycle, or bus
     if(after_data['label'] not in valid_objects):
